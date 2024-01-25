@@ -1,0 +1,5 @@
+# Solid
+SolidClientCredentials>=1.0.0
+rdflib>=7.0.0
+# UI
+streamlit>=1.29.0
