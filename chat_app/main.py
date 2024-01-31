@@ -1,6 +1,8 @@
 import urllib.parse
 
 import streamlit as st
+from langchain_core.chat_history import BaseChatMessageHistory
+from chat_app.solid_message_history import SolidChatMessageHistory
 
 
 def setup_login_sidebar():
@@ -63,10 +65,26 @@ def setup_login_sidebar():
             )
 
             if result:
-                st.session_state["solid_token"] = result
+                st.session_state["solid_token"] = result["token"]
                 st.rerun()
     else:
         st.markdown("Logged in!")
+
+def init_messages(history: BaseChatMessageHistory) -> None:
+    clear_button = st.sidebar.button("Clear Conversation", key="clear")
+    if clear_button or len(history.messages) == 0:
+        history.clear()
+
+
+def print_state_messages(history: BaseChatMessageHistory):
+    roles = {
+        "human": "user",
+        "ai": "assistant",
+    }
+
+    for message in history.messages:
+        with st.chat_message(roles[message.type]):
+            st.markdown(message.content)
 
 
 def main():
@@ -75,9 +93,18 @@ def main():
     st.sidebar.title("Options")
     setup_login_sidebar()
 
-    if prompt := st.chat_input("Enter a query"):
-        with st.chat_message("user"):
-            st.markdown(prompt)
+    if "solid_token" in st.session_state:
+        if "msg_history" not in st.session_state:
+            st.session_state["msg_history"] = SolidChatMessageHistory(st.session_state["solid_token"])
+        history = st.session_state["msg_history"]
+
+        init_messages(history)
+        print_state_messages(history)
+        
+        if prompt := st.chat_input("Enter a query"):
+            with st.chat_message("user"):
+                st.markdown(prompt)
+            history.add_user_message(prompt)
 
 
 def cli():
