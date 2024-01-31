@@ -88,6 +88,11 @@ def print_state_messages(history: BaseChatMessageHistory):
         with st.chat_message(roles[message.type]):
             st.markdown(message.content)
 
+@st.cache_data()
+def get_llm_options():
+    response = requests.get("http://localhost:5000/models/")
+    return response.json()
+
 
 def main():
     st.set_page_config(page_title="Solid RAG", page_icon="🐢")
@@ -103,6 +108,8 @@ def main():
         history = st.session_state["msg_history"]
         init_messages(history)
         print_state_messages(history)
+
+        selected_llm = st.sidebar.radio("LLM", get_llm_options())
 
         if "input_disabled" not in st.session_state:
             st.session_state["input_disabled"] = False
@@ -123,7 +130,7 @@ def main():
                 response = requests.post(
                     "http://localhost:5000/completions/",
                     json={
-                        "model": "TheBloke/orca_mini_3B-GGML",
+                        "model": selected_llm,
                         "messages": [
                             {
                                 "content": msg.content,

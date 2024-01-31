@@ -26,34 +26,8 @@ def read_root():
 
 
 @app.get("/models/")
-def get_models():
-    pass
-
-
-# {
-#   "object": "list",
-#   "data": [
-#     {
-#       "id": "model-id-0",
-#       "object": "model",
-#       "created": 1686935002,
-#       "owned_by": "organization-owner"
-#     },
-#     {
-#       "id": "model-id-1",
-#       "object": "model",
-#       "created": 1686935002,
-#       "owned_by": "organization-owner",
-#     },
-#     {
-#       "id": "model-id-2",
-#       "object": "model",
-#       "created": 1686935002,
-#       "owned_by": "openai"
-#     },
-#   ],
-#   "object": "list"
-# }
+def get_models() -> list[str]:
+    return list(map(lambda llm: llm.get("model"), config["llms"]))
 
 
 @app.post("/embeddings/")
