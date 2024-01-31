@@ -1,4 +1,5 @@
 import urllib.parse
+import requests
 
 import streamlit as st
 from langchain_core.chat_history import BaseChatMessageHistory
@@ -70,6 +71,7 @@ def setup_login_sidebar():
     else:
         st.markdown("Logged in!")
 
+
 def init_messages(history: BaseChatMessageHistory) -> None:
     clear_button = st.sidebar.button("Clear Conversation", key="clear")
     if clear_button or len(history.messages) == 0:
@@ -95,16 +97,49 @@ def main():
 
     if "solid_token" in st.session_state:
         if "msg_history" not in st.session_state:
-            st.session_state["msg_history"] = SolidChatMessageHistory(st.session_state["solid_token"])
+            st.session_state["msg_history"] = SolidChatMessageHistory(
+                st.session_state["solid_token"]
+            )
         history = st.session_state["msg_history"]
-
         init_messages(history)
         print_state_messages(history)
-        
-        if prompt := st.chat_input("Enter a query"):
+
+        if "input_disabled" not in st.session_state:
+            st.session_state["input_disabled"] = False
+
+        def set_input_disabled(is_disabled):
+            st.session_state["input_disabled"] = is_disabled
+
+        if prompt := st.chat_input(
+            "Enter a query",
+            disabled=st.session_state["input_disabled"],
+            on_submit=lambda: set_input_disabled(True),
+        ):
             with st.chat_message("user"):
                 st.markdown(prompt)
             history.add_user_message(prompt)
+
+            with st.spinner("LLM is thinking...."):
+                response = requests.post(
+                    "http://localhost:5000/completions/",
+                    json={
+                        "model": "TheBloke/orca_mini_3B-GGML",
+                        "messages": [
+                            {
+                                "content": msg.content,
+                                "type": msg.type,
+                            }
+                            for msg in history.messages
+                        ],
+                    },
+                )
+            set_input_disabled(False)
+            if not response.ok:
+                raise RuntimeError(response.text)
+            else:
+                history.add_ai_message(response.text)
+            st.rerun()
+                
 
 
 def cli():
