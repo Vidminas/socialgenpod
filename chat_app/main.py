@@ -8,6 +8,7 @@ from chat_app.solid_message_history import SolidChatMessageHistory
 
 def setup_login_sidebar():
     from chat_app.solid_oidc_button import SolidOidcComponent
+    from solid_oidc_client import SolidAuthSession
 
     # Default IDP list from https://solidproject.org/users/get-a-pod
     solid_server_url = st.sidebar.selectbox(
@@ -24,10 +25,13 @@ def setup_login_sidebar():
             "https://teamid.live/",
             "Other...",
         ),
+        disabled="solid_token" in st.session_state,
     )
     if solid_server_url == "Other...":
         solid_server_url = st.sidebar.text_input(
-            "Solid Server URL", "https://solidpod.azurewebsites.net"
+            "Solid Server URL",
+            "https://solidpod.azurewebsites.net",
+            disabled="solid_token" in st.session_state,
         )
 
     if "solid_idps" not in st.session_state:
@@ -69,7 +73,13 @@ def setup_login_sidebar():
                 st.session_state["solid_token"] = result["token"]
                 st.rerun()
     else:
-        st.markdown("Logged in!")
+        solid_auth = SolidAuthSession.deserialize(st.session_state["solid_token"])
+        st.sidebar.markdown(f"Logged in as <{solid_auth.get_web_id()}>")
+        def logout():
+            # TODO: this should also revoke the token, but not implemented yet
+            del st.session_state["solid_token"]
+            
+        st.sidebar.button("Log Out", on_click=logout)
 
 
 def init_messages(history: BaseChatMessageHistory) -> None:
