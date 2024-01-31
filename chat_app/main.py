@@ -75,10 +75,13 @@ def setup_login_sidebar():
     else:
         solid_auth = SolidAuthSession.deserialize(st.session_state["solid_token"])
         st.sidebar.markdown(f"Logged in as <{solid_auth.get_web_id()}>")
+
         def logout():
             # TODO: this should also revoke the token, but not implemented yet
             del st.session_state["solid_token"]
-            
+            st.session_state.pop("llm_options", None)
+            st.session_state.pop("msg_history", None)
+
         st.sidebar.button("Log Out", on_click=logout)
 
 
@@ -98,11 +101,6 @@ def print_state_messages(history: BaseChatMessageHistory):
         with st.chat_message(roles[message.type]):
             st.markdown(message.content)
 
-@st.cache_data()
-def get_llm_options():
-    response = requests.get("http://localhost:5000/models/")
-    return response.json()
-
 
 def main():
     st.set_page_config(page_title="Solid RAG", page_icon="🐢")
@@ -119,18 +117,18 @@ def main():
         init_messages(history)
         print_state_messages(history)
 
-        selected_llm = st.sidebar.radio("LLM", get_llm_options())
+        if "llm_options" not in st.session_state:
+            response = requests.get("http://localhost:5000/models/")
+            st.session_state["llm_options"] = response.json()
+        selected_llm = st.sidebar.radio("LLM", st.session_state["llm_options"])
 
         if "input_disabled" not in st.session_state:
             st.session_state["input_disabled"] = False
 
-        def set_input_disabled(is_disabled):
-            st.session_state["input_disabled"] = is_disabled
-
         if prompt := st.chat_input(
             "Enter a query",
             disabled=st.session_state["input_disabled"],
-            on_submit=lambda: set_input_disabled(True),
+            on_submit=lambda: st.session_state.update(input_disabled=True),
         ):
             with st.chat_message("user"):
                 st.markdown(prompt)
@@ -150,13 +148,12 @@ def main():
                         ],
                     },
                 )
-            set_input_disabled(False)
             if not response.ok:
                 raise RuntimeError(response.text)
             else:
                 history.add_ai_message(response.text)
+            st.session_state["input_disabled"] = False
             st.rerun()
-                
 
 
 def cli():

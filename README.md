@@ -3,8 +3,6 @@ Converse with an LLM provider of your choice. Store your documents and chat hist
 
 This project builds on the work from [ChatDocs-Streamlit](https://github.com/Vidminas/chatdocs-streamlit).
 
-It only works with [Community Solid Servers](https://communitysolidserver.github.io/CommunitySolidServer/latest/) due to use of implementation-specific client credentials.
-
 ## Setup
 
 Based on <https://stackoverflow.com/questions/76722680/what-is-the-best-way-to-combine-conda-with-standard-python-packaging-tools-e-g>
