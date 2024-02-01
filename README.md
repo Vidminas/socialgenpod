@@ -1,4 +1,4 @@
-# Solid RAG
+# Social Gen Pod
 Converse with an LLM provider of your choice. Store your documents and chat history in a Solid pod.
 
 This project builds on the work from [ChatDocs-Streamlit](https://github.com/Vidminas/chatdocs-streamlit).
@@ -44,6 +44,6 @@ pip install --no-build-isolation --no-deps .
 
 ## Usage
 
-Open chat interface by running `solidrag-chat`. 
+Open chat interface by running `genpod-chat`. 
 
-Run the LLM service provider using `solidrag-llm`.
+Run the LLM service provider using `genpod-llm`.

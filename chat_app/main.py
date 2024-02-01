@@ -103,8 +103,8 @@ def print_state_messages(history: BaseChatMessageHistory):
 
 
 def main():
-    st.set_page_config(page_title="Solid RAG", page_icon="🐢")
-    st.title("Solid RAG 🐢")
+    st.set_page_config(page_title="Social Gen Pod", page_icon="🐢")
+    st.title("Social Gen Pod 🐢")
     st.sidebar.title("Options")
     setup_login_sidebar()
 

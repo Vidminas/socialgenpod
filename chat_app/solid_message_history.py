@@ -12,7 +12,7 @@ from solid_oidc_client import SolidAuthSession
 pim_ns = Namespace("http://www.w3.org/ns/pim/space#")
 solid_ns = Namespace("http://www.w3.org/ns/solid/terms#")
 ldp_ns = Namespace("http://www.w3.org/ns/ldp#")
-APP_URI = "https://github.com/Vidminas/solidrag"
+APP_URI = "https://github.com/Vidminas/socialgenpod"
 
 
 def get_item_name(url: str) -> str:
@@ -92,25 +92,25 @@ class SolidChatMessageHistory(BaseChatMessageHistory):
 
         private_index = self.read_solid_item(private_index_uri)
 
-        solidrag_workspace_uri = private_index.value(
+        genpod_workspace_uri = private_index.value(
             subject=APP_URI, predicate=solid_ns.instanceContainer
         )
-        if solidrag_workspace_uri is None:
-            solidrag_workspace_uri = webid.replace(
-                "profile/card#me", "private/solidrag/"
+        if genpod_workspace_uri is None:
+            genpod_workspace_uri = webid.replace(
+                "profile/card#me", "private/genpod/"
             )
             sparql = (
                 f"INSERT DATA {{\n"
                 f"{URIRef(APP_URI).n3()} {RDF.type.n3()} {solid_ns.TypeRegistration.n3()} .\n"
                 f"{URIRef(APP_URI).n3()} {solid_ns.forClass.n3()} {pim_ns.SharedWorkspace.n3()} .\n"
-                f"{URIRef(APP_URI).n3()} {solid_ns.instance.n3()} {URIRef(solidrag_workspace_uri).n3()} .\n"
+                f"{URIRef(APP_URI).n3()} {solid_ns.instance.n3()} {URIRef(genpod_workspace_uri).n3()} .\n"
                 f"}}"
             )
             self.update_solid_item(private_index_uri, sparql)
-        if not self.is_item_available(solidrag_workspace_uri):
-            self.create_solid_item(solidrag_workspace_uri)
+        if not self.is_item_available(genpod_workspace_uri):
+            self.create_solid_item(genpod_workspace_uri)
 
-        self.solidrag_messages_uri = solidrag_workspace_uri + "solidrag.ttl"
+        self.genpod_messages_uri = genpod_workspace_uri + "genpod.ttl"
 
     def is_item_available(self, url) -> bool:
         try:
@@ -168,18 +168,18 @@ class SolidChatMessageHistory(BaseChatMessageHistory):
     @property
     def messages(self) -> list[BaseMessage]:
         """Retrieve the current list of messages"""
-        if not self.is_item_available(self.solidrag_messages_uri):
-            self.create_solid_item(self.solidrag_messages_uri)
+        if not self.is_item_available(self.genpod_messages_uri):
+            self.create_solid_item(self.genpod_messages_uri)
 
         res = self.session.get(
-            self.solidrag_messages_uri,
-            headers=self.solid_auth.get_auth_headers(self.solidrag_messages_uri, "GET"),
+            self.genpod_messages_uri,
+            headers=self.solid_auth.get_auth_headers(self.genpod_messages_uri, "GET"),
         )
         if not res.ok:
             print("getting messages failed", res.text)
             msgs = []
         else:
-            self.graph.parse(data=res.text, publicID=self.solidrag_messages_uri)
+            self.graph.parse(data=res.text, publicID=self.genpod_messages_uri)
             list_node = self.graph.value(predicate=RDF.type, object=RDF.List)
             if list_node is None:
                 return []
@@ -215,7 +215,7 @@ class SolidChatMessageHistory(BaseChatMessageHistory):
 
         list_node = self.graph.value(predicate=RDF.type, object=RDF.List)
         if list_node is None:
-            msgs_node = URIRef(f"{self.solidrag_messages_uri}#messages")
+            msgs_node = URIRef(f"{self.genpod_messages_uri}#messages")
             update_graph.add((msgs_node, RDF.type, RDF.List))
 
             msgs = Collection(update_graph, msgs_node)
@@ -249,11 +249,11 @@ class SolidChatMessageHistory(BaseChatMessageHistory):
 
         # Update remote copy
         self.session.patch(
-            url=self.solidrag_messages_uri,
+            url=self.genpod_messages_uri,
             data=sparql.encode("utf-8"),
             headers={
                 "Content-Type": "application/sparql-update",
-                **self.solid_auth.get_auth_headers(self.solidrag_messages_uri, "PATCH"),
+                **self.solid_auth.get_auth_headers(self.genpod_messages_uri, "PATCH"),
             },
         )
         # Update local copy
@@ -262,9 +262,9 @@ class SolidChatMessageHistory(BaseChatMessageHistory):
     def clear(self) -> None:
         """Clear session memory"""
         self.session.delete(
-            self.solidrag_messages_uri,
+            self.genpod_messages_uri,
             headers=self.solid_auth.get_auth_headers(
-                self.solidrag_messages_uri, "DELETE"
+                self.genpod_messages_uri, "DELETE"
             ),
         )
         self.graph = Graph()

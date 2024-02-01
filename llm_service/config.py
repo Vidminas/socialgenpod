@@ -5,7 +5,7 @@ import yaml
 
 from .utils import merge
 
-FILENAME = "chatdocs.yml"
+FILENAME = "genpod.yml"
 
 
 def _get_config(path: Union[Path, str]) -> Dict[str, Any]:

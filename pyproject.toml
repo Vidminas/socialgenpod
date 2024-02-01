@@ -3,14 +3,14 @@ requires = ["setuptools >= 61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "solidrag"
+name = "socialgenpod"
 version = "0.0.1"
 dynamic = ["dependencies", "optional-dependencies"]
 requires-python = ">= 3.10"
-description = "Solid + Retrieval Augmented Generation Demo"
+description = "Social Linked Data + Retrieval Augmented Generation Demo"
 readme = "README.md"
 license = {file = "LICENSE"}
-keywords = ["MIT Solid", "Privacy", "LLM", "Generative AI", "Retrieval Augmented Generation"]
+keywords = ["MIT Solid", "Social", "Linked Data", "Privacy", "LLM", "Generative AI", "Retrieval Augmented Generation"]
 classifiers = [
   "Development Status :: 1 - Planning",
   "Intended Audience :: Developers",
@@ -22,8 +22,8 @@ classifiers = [
 ]
 
 [project.scripts]
-solidrag-chat = "chat_app.main:cli"
-solidrag-llm = "llm_service.main:main"
+genpod-chat = "chat_app.main:cli"
+genpod-llm = "llm_service.main:main"
 
 [tool.setuptools]
 packages = ["chat_app", "llm_service"]
