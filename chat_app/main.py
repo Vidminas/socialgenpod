@@ -1,12 +1,18 @@
+import os
 import requests
-
 import streamlit as st
+from st_pages import Page, show_pages, hide_pages
 from langchain_core.chat_history import BaseChatMessageHistory
 from langchain.schema import messages_to_dict
 from chat_app.solid_message_history import SolidChatMessageHistory
 
+print("WEBSITE_SITE_NAME", os.environ.get("WEBSITE_SITE_NAME"))
+print("WEBSITE_HOSTNAME", os.environ.get("WEBSITE_HOSTNAME"))
+print("SERVER_PORT", os.environ.get("SERVER_PORT"))
+print("PORT", os.environ.get("PORT"))
+print("WEBSITES_PORT", os.environ.get("WEBSITES_PORT"))
 
-OAUTH_CALLBACK_URI = "https://raw.githubusercontent.com/Vidminas/socialgenpod/main/chat_app/data/client_id.json"
+OAUTH_CALLBACK_URI = "http://localhost:8501/callback"
 
 
 def setup_login_sidebar():
@@ -94,6 +100,11 @@ def print_state_messages(history: BaseChatMessageHistory):
 
 def main():
     st.set_page_config(page_title="Social Gen Pod", page_icon="🐢")
+    show_pages([
+        Page("chat_app/main.py", "Social Gen Pod"),
+        Page("chat_app/callback.py", "callback"),
+    ])
+    hide_pages(["callback"])
     st.title("Social Gen Pod 🐢")
     st.sidebar.title("Options")
     setup_login_sidebar()

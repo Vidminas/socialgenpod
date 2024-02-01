@@ -4,6 +4,7 @@ rdflib>=7.0.0
 # UI
 streamlit>=1.30.0
 streamlit-oauth>=0.1.6
+st-pages>=0.4.5
 # Message history and server communication
 langchain>=0.1.0
 langchain-core>=0.1.17
