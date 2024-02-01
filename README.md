@@ -47,3 +47,8 @@ pip install --no-build-isolation --no-deps .
 Open chat interface by running `genpod-chat`. 
 
 Run the LLM service provider using `genpod-llm`.
+
+
+## Acknowledgments
+
+`chat_app/data/turtle.png` is from <https://emojipedia.org/mozilla/firefox-os-2.5/turtle>.

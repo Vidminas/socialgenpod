@@ -1,10 +1,12 @@
-import urllib.parse
 import requests
 
 import streamlit as st
 from langchain_core.chat_history import BaseChatMessageHistory
 from langchain.schema import messages_to_dict
 from chat_app.solid_message_history import SolidChatMessageHistory
+
+
+OAUTH_CALLBACK_URI = "https://raw.githubusercontent.com/Vidminas/socialgenpod/main/chat_app/data/client_id.json"
 
 
 def setup_login_sidebar():
@@ -37,19 +39,6 @@ def setup_login_sidebar():
 
     if "solid_idps" not in st.session_state:
         st.session_state["solid_idps"] = {}
-        session = st.runtime.get_instance()._session_mgr.list_active_sessions()[0]
-        st.session_state["OAUTH_CALLBACK_URI"] = urllib.parse.urlunparse(
-            [
-                session.client.request.protocol,
-                session.client.request.host,
-                "",
-                "",
-                "",
-                "",
-            ]
-        )
-
-    OAUTH_CALLBACK_URI = st.session_state["OAUTH_CALLBACK_URI"]
 
     if solid_server_url not in st.session_state["solid_idps"]:
         st.session_state["solid_idps"][solid_server_url] = SolidOidcComponent(

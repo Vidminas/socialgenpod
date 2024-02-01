@@ -20,6 +20,8 @@ def generate_pkce_pair(client_id):
 class SolidOidcComponent(OAuth2Component):
     def __init__(self, solid_server_url: str, valid_redirect_uris: list[str]):
         client = SolidOidcClient(storage=MemStore())
+        client.client_id = "https://raw.githubusercontent.com/Vidminas/socialgenpod/main/chat_app/data/client_id.json"
+        client.client.client_id = "https://raw.githubusercontent.com/Vidminas/socialgenpod/main/chat_app/data/client_id.json"
         client.register_client(solid_server_url, valid_redirect_uris)
         super().__init__(
             client_id=None,
