@@ -1,7 +1,7 @@
 from typing import Any, Dict
 
-from langchain.embeddings import HuggingFaceInstructEmbeddings, HuggingFaceEmbeddings
 from langchain.embeddings.base import Embeddings
+from langchain_community.embeddings import HuggingFaceInstructEmbeddings, HuggingFaceEmbeddings
 
 
 def get_embeddings(config: Dict[str, Any]) -> Embeddings:

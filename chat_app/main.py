@@ -3,6 +3,7 @@ import requests
 
 import streamlit as st
 from langchain_core.chat_history import BaseChatMessageHistory
+from langchain.schema import messages_to_dict
 from chat_app.solid_message_history import SolidChatMessageHistory
 
 
@@ -139,21 +140,15 @@ def main():
                     "http://localhost:5000/completions/",
                     json={
                         "model": selected_llm,
-                        "messages": [
-                            {
-                                "content": msg.content,
-                                "type": msg.type,
-                            }
-                            for msg in history.messages
-                        ],
+                        "messages": messages_to_dict(history.messages),
                     },
                 )
+            st.session_state["input_disabled"] = False
             if not response.ok:
                 raise RuntimeError(response.text)
             else:
                 history.add_ai_message(response.text)
-            st.session_state["input_disabled"] = False
-            st.rerun()
+                st.rerun()
 
 
 def cli():

@@ -1,7 +1,7 @@
 from typing import Any
 
-from langchain.llms import CTransformers, HuggingFacePipeline, OpenAI
 from langchain.llms.base import LLM
+from langchain_community.llms import CTransformers, HuggingFacePipeline, OpenAI
 from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
 
 from .utils import merge

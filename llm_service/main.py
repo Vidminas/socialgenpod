@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 import uvicorn
-from langchain_core.messages import BaseMessage
+from langchain.schema import messages_from_dict
 
 from .chains import make_conversation_chain
 from .config import get_config
@@ -10,14 +10,9 @@ app = FastAPI()
 config = get_config()
 
 
-class Message(BaseMessage, BaseModel):
-    content: str
-    type: str
-
-
 class ChatCompletionRequestData(BaseModel):
     model: str
-    messages: list[Message]
+    messages: list[dict]
 
 
 @app.get("/")
@@ -73,10 +68,13 @@ def chat_completion(req: ChatCompletionRequestData) -> str:
         if llm["model"] == req.model:
             selected_model_idx = idx
             break
+
+    messages = messages_from_dict(req.messages)
+
     if selected_model_idx != -1:
         llm = make_conversation_chain(config, selected_llm_index=selected_model_idx)
-        response = llm(
-            {"question": req.messages[-1].content, "chat_history": req.messages[:-1]},
+        response = llm.invoke(
+            {"question": messages[-1].content, "chat_history": messages[:-1]},
             # callbacks=[retrieve_callback, print_callback, stdout_callback],
         )
         return response["answer"]
