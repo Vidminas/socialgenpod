@@ -4,9 +4,15 @@ from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_core.messages import BaseMessage
 from rdflib import Graph
 from rdflib.term import BNode, URIRef, Literal
-from rdflib.namespace import RDF, PROF, XSD
+from rdflib.namespace import Namespace, RDF, PROF, XSD
 from rdflib.collection import Collection
 from solid_oidc_client import SolidAuthSession
+
+# https://solidproject.org/TR/protocol#namespaces
+pim_ns = Namespace("http://www.w3.org/ns/pim/space#")
+solid_ns = Namespace("http://www.w3.org/ns/solid/terms#")
+ldp_ns = Namespace("http://www.w3.org/ns/ldp#")
+APP_URI = "https://github.com/Vidminas/solidrag"
 
 
 def get_item_name(url: str) -> str:
@@ -30,9 +36,81 @@ class SolidChatMessageHistory(BaseChatMessageHistory):
 
     def __init__(self, solid_token):
         self.solid_auth = SolidAuthSession.deserialize(solid_token)
-        self.pod_base_url = self.solid_auth.get_web_id().replace("profile/card#me", "")
         self.session = requests.Session()
         self.graph = Graph()
+
+        webid = self.solid_auth.get_web_id()
+        profile_card_uri = webid.removesuffix("#me")
+        profile_card = self.read_solid_item(profile_card_uri)
+
+        # https://solid.github.io/webid-profile/#private-preferences
+        preferences_file_uri = profile_card.value(
+            subject=webid, predicate=pim_ns.preferencesFile
+        )
+        if preferences_file_uri is None:
+            preferences_file_uri = webid.replace("card#me", "preferences.ttl")
+            sparql = (
+                f"INSERT DATA {{\n"
+                f"{URIRef(webid).n3()} {pim_ns.preferencesFile.n3()} {URIRef(preferences_file_uri).n3()} .\n"
+                f"}}"
+            )
+            self.update_solid_item(profile_card_uri, sparql)
+        if not self.is_item_available(preferences_file_uri):
+            self.create_solid_item(preferences_file_uri)
+            sparql = (
+                f"INSERT DATA {{\n"
+                f"{URIRef(preferences_file_uri).n3()} {RDF.type.n3()} {pim_ns.ConfigurationFile.n3()} .\n"
+                f"}}"
+            )
+            self.update_solid_item(preferences_file_uri, sparql)
+
+        preferences_file = self.read_solid_item(preferences_file_uri)
+
+        # https://solid.github.io/type-indexes/#private-type-index
+        private_index_uri = preferences_file.value(
+            subject=webid, predicate=solid_ns.privateTypeIndex
+        )
+        if private_index_uri is None:
+            private_index_uri = webid.replace(
+                "profile/card#me", "settings/privateTypeIndex.ttl"
+            )
+            sparql = (
+                f"INSERT DATA {{\n"
+                f"{URIRef(webid).n3()} {solid_ns.privateTypeIndex.n3()} {URIRef(private_index_uri).n3()} .\n"
+                f"}}"
+            )
+            self.update_solid_item(preferences_file_uri, sparql)
+        if not self.is_item_available(private_index_uri):
+            self.create_solid_item(private_index_uri)
+            sparql = (
+                f"INSERT DATA {{\n"
+                f"{URIRef(private_index_uri).n3()} {RDF.type.n3()} {solid_ns.TypeIndex.n3()} .\n"
+                f"{URIRef(private_index_uri).n3()} {RDF.type.n3()} {solid_ns.UnlistedDocument.n3()} .\n"
+                f"}}"
+            )
+            self.update_solid_item(private_index_uri, sparql)
+
+        private_index = self.read_solid_item(private_index_uri)
+
+        solidrag_workspace_uri = private_index.value(
+            subject=APP_URI, predicate=solid_ns.instanceContainer
+        )
+        if solidrag_workspace_uri is None:
+            solidrag_workspace_uri = webid.replace(
+                "profile/card#me", "private/solidrag/"
+            )
+            sparql = (
+                f"INSERT DATA {{\n"
+                f"{URIRef(APP_URI).n3()} {RDF.type.n3()} {solid_ns.TypeRegistration.n3()} .\n"
+                f"{URIRef(APP_URI).n3()} {solid_ns.forClass.n3()} {pim_ns.SharedWorkspace.n3()} .\n"
+                f"{URIRef(APP_URI).n3()} {solid_ns.instance.n3()} {URIRef(solidrag_workspace_uri).n3()} .\n"
+                f"}}"
+            )
+            self.update_solid_item(private_index_uri, sparql)
+        if not self.is_item_available(solidrag_workspace_uri):
+            self.create_solid_item(solidrag_workspace_uri)
+
+        self.solidrag_messages_uri = solidrag_workspace_uri + "solidrag.ttl"
 
     def is_item_available(self, url) -> bool:
         try:
@@ -45,19 +123,44 @@ class SolidChatMessageHistory(BaseChatMessageHistory):
         except requests.exceptions.ConnectionError:
             return False
 
-    def create_item(self, url: str) -> bool:
+    def read_solid_item(self, uri) -> Graph:
+        content = Graph()
+        content.bind("solid", solid_ns)
+        content.bind("pim", pim_ns)
+        res = self.session.get(
+            uri,
+            headers={
+                "Content-Type": "text/turtle",
+                **self.solid_auth.get_auth_headers(uri, "GET"),
+            },
+        )
+        content.parse(data=res.text, publicID=uri)
+        return content
+
+    def create_solid_item(self, uri: str) -> bool:
         res = self.session.put(
-            url,
+            uri,
             data=None,
             headers={
                 "Accept": "text/turtle",
                 "If-None-Match": "*",
-                "Link": '<http://www.w3.org/ns/ldp#BasicContainer>; rel="type"'
-                if url.endswith("/")
-                else '<http://www.w3.org/ns/ldp#Resource>; rel="type"',
-                "Slug": get_item_name(url),
+                "Link": f'{ldp_ns.BasicContainer.n3()}; rel="type"'
+                if uri.endswith("/")
+                else f'{ldp_ns.Resource.n3()}; rel="type"',
+                "Slug": get_item_name(uri),
                 "Content-Type": "text/turtle",
-                **self.solid_auth.get_auth_headers(url, "PUT"),
+                **self.solid_auth.get_auth_headers(uri, "PUT"),
+            },
+        )
+        return res.ok
+
+    def update_solid_item(self, uri: str, sparql: str):
+        res = self.session.patch(
+            url=uri,
+            data=sparql.encode("utf-8"),
+            headers={
+                "Content-Type": "application/sparql-update",
+                **self.solid_auth.get_auth_headers(uri, "PATCH"),
             },
         )
         return res.ok
@@ -65,25 +168,18 @@ class SolidChatMessageHistory(BaseChatMessageHistory):
     @property
     def messages(self) -> list[BaseMessage]:
         """Retrieve the current list of messages"""
-
-        if not self.is_item_available(f"{self.pod_base_url}private/"):
-            self.create_item(f"{self.pod_base_url}private/")
-        if not self.is_item_available(f"{self.pod_base_url}private/chatdocs.ttl"):
-            self.create_item(f"{self.pod_base_url}private/chatdocs.ttl")
+        if not self.is_item_available(self.solidrag_messages_uri):
+            self.create_solid_item(self.solidrag_messages_uri)
 
         res = self.session.get(
-            f"{self.pod_base_url}private/chatdocs.ttl",
-            headers=self.solid_auth.get_auth_headers(
-                f"{self.pod_base_url}private/chatdocs.ttl", "GET"
-            ),
+            self.solidrag_messages_uri,
+            headers=self.solid_auth.get_auth_headers(self.solidrag_messages_uri, "GET"),
         )
         if not res.ok:
             print("getting messages failed", res.text)
             msgs = []
         else:
-            self.graph.parse(
-                data=res.text, publicID=f"{self.pod_base_url}private/chatdocs.ttl"
-            )
+            self.graph.parse(data=res.text, publicID=self.solidrag_messages_uri)
             list_node = self.graph.value(predicate=RDF.type, object=RDF.List)
             if list_node is None:
                 return []
@@ -119,7 +215,7 @@ class SolidChatMessageHistory(BaseChatMessageHistory):
 
         list_node = self.graph.value(predicate=RDF.type, object=RDF.List)
         if list_node is None:
-            msgs_node = URIRef(f"{self.pod_base_url}private/chatdocs.ttl#messages")
+            msgs_node = URIRef(f"{self.solidrag_messages_uri}#messages")
             update_graph.add((msgs_node, RDF.type, RDF.List))
 
             msgs = Collection(update_graph, msgs_node)
@@ -153,13 +249,11 @@ class SolidChatMessageHistory(BaseChatMessageHistory):
 
         # Update remote copy
         self.session.patch(
-            url=f"{self.pod_base_url}private/chatdocs.ttl",
+            url=self.solidrag_messages_uri,
             data=sparql.encode("utf-8"),
             headers={
                 "Content-Type": "application/sparql-update",
-                **self.solid_auth.get_auth_headers(
-                    f"{self.pod_base_url}private/chatdocs.ttl", "PATCH"
-                ),
+                **self.solid_auth.get_auth_headers(self.solidrag_messages_uri, "PATCH"),
             },
         )
         # Update local copy
@@ -168,9 +262,9 @@ class SolidChatMessageHistory(BaseChatMessageHistory):
     def clear(self) -> None:
         """Clear session memory"""
         self.session.delete(
-            f"{self.pod_base_url}private/chatdocs.ttl",
+            self.solidrag_messages_uri,
             headers=self.solid_auth.get_auth_headers(
-                f"{self.pod_base_url}private/chatdocs.ttl", "DELETE"
+                self.solidrag_messages_uri, "DELETE"
             ),
         )
         self.graph = Graph()
