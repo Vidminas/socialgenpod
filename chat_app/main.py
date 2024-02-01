@@ -6,11 +6,6 @@ from langchain_core.chat_history import BaseChatMessageHistory
 from langchain.schema import messages_to_dict
 from chat_app.solid_message_history import SolidChatMessageHistory
 
-print("WEBSITE_SITE_NAME", os.environ.get("WEBSITE_SITE_NAME"))
-print("WEBSITE_HOSTNAME", os.environ.get("WEBSITE_HOSTNAME"))
-print("SERVER_PORT", os.environ.get("SERVER_PORT"))
-print("PORT", os.environ.get("PORT"))
-print("WEBSITES_PORT", os.environ.get("WEBSITES_PORT"))
 
 OAUTH_CALLBACK_URI = "http://localhost:8501/callback"
 
@@ -108,6 +103,12 @@ def main():
     st.title("Social Gen Pod 🐢")
     st.sidebar.title("Options")
     setup_login_sidebar()
+
+    st.text("WEBSITE_SITE_NAME", help=os.environ.get("WEBSITE_SITE_NAME"))
+    st.text("WEBSITE_HOSTNAME", help=os.environ.get("WEBSITE_HOSTNAME"))
+    st.text("SERVER_PORT", help=os.environ.get("SERVER_PORT"))
+    st.text("PORT", help=os.environ.get("PORT"))
+    st.text("WEBSITES_PORT", help=os.environ.get("WEBSITES_PORT"))
 
     if "solid_token" in st.session_state:
         if "msg_history" not in st.session_state:
