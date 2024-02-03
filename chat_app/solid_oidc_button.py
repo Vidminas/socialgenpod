@@ -1,9 +1,12 @@
 import urllib.parse
-import base64
+import requests
 
 import streamlit as st
-from solid_oidc_client import SolidOidcClient, MemStore
+from solid_oidc_client import SolidOidcClient, MemStore, SolidAuthSession
 from solid_oidc_client.solid_oidc_client import create_verifier_challenge
+from solid_oidc_client.dpop_utils import create_dpop_token
+from oic.oic import Client as OicClient
+import jwcrypto.jwk
 from streamlit_oauth import (
     OAuth2Component,
     StreamlitOauthError,
@@ -18,9 +21,27 @@ def generate_pkce_pair(client_id):
 
 
 class SolidOidcComponent(OAuth2Component):
-    def __init__(self, solid_server_url: str, redirect_uris: list[str]):
+    def __init__(self, solid_server_url: str):
+        self.client_id = "https://raw.githubusercontent.com/Vidminas/socialgenpod/main/chat_app/data/client_id.json"
+        self.client_secret = None
+
         client = SolidOidcClient(storage=MemStore())
-        client.register_client(solid_server_url, redirect_uris)
+        client.client = OicClient(
+            client_id=self.client_id,
+            requests_dir=solid_server_url,
+        )
+        client.provider_info = client.client.provider_config(solid_server_url)
+
+        if "none" not in client.provider_info["token_endpoint_auth_methods_supported"]:
+            # can't use public client, must register with server
+            res = requests.get(self.client_id)
+            client_metadata = res.json()
+            registration_response = client.client.register(
+                client.provider_info['registration_endpoint'],
+                **client_metadata)
+            self.client_id = registration_response['client_id']
+            self.client_secret = registration_response['client_secret']
+
         super().__init__(
             client_id=None,
             client_secret=None,
@@ -43,13 +64,12 @@ class SolidOidcComponent(OAuth2Component):
             "state": state,
             "response_type": "code",
             "redirect_uri": redirect_uri,
-            "client_id": self.client.client_id,
+            "client_id": self.client_id,
             # offline_access: also asks for refresh token
             "scope": "openid offline_access",
         }
         if extras_params is not None:
             params = {**params, **extras_params}
-
         return f"{authorization_endpoint}?{urllib.parse.urlencode(params)}"
 
     def authorize_button(
@@ -83,15 +103,30 @@ class SolidOidcComponent(OAuth2Component):
                     f"STATE {state} DOES NOT MATCH OR OUT OF DATE"
                 )
             if "code" in result:
-                session = self.client.finish_login(
-                    result["code"], result["state"], redirect_uri
+                token_endpoint = self.client.provider_info["token_endpoint"]
+                key = jwcrypto.jwk.JWK.generate(kty="EC", crv="P-256")
+                code_verifier = self.client.storage.get(f"{state}_code_verifier")
+
+                res = requests.post(
+                    token_endpoint,
+                    auth=(self.client_id, self.client_secret) if self.client_secret is not None else None,
+                    data={
+                        "grant_type": "authorization_code",
+                        "client_id": self.client_id,
+                        "redirect_uri": redirect_uri,
+                        "code": result["code"],
+                        "code_verifier": code_verifier,
+                    },
+                    headers={
+                        "DPoP": create_dpop_token(key, token_endpoint, "POST"),
+                    },
+                    allow_redirects=False,
                 )
-                result["token"] = session.serialize()
-            if "id_token" in result:
-                # TODO: verify id_token
-                result["id_token"] = base64.b64decode(
-                    result["id_token"].split(".")[1] + "=="
-                )
+
+                assert res.ok, f"Could not get access token: {res.text}"
+                access_token = res.json()["access_token"]
+                self.client.storage.remove(f"{state}_code_verifier")
+                result["token"] = SolidAuthSession(access_token, key).serialize()
 
         return result
 

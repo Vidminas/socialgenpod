@@ -46,7 +46,7 @@ def setup_login_sidebar():
 
     if solid_server_url not in st.session_state["solid_idps"]:
         st.session_state["solid_idps"][solid_server_url] = SolidOidcComponent(
-            solid_server_url, [OAUTH_CALLBACK_URI]
+            solid_server_url
         )
 
     solid_client = st.session_state["solid_idps"][solid_server_url]
@@ -98,10 +98,12 @@ def print_state_messages(history: BaseChatMessageHistory):
 
 def main():
     st.set_page_config(page_title="Social Gen Pod", page_icon="🐢")
-    show_pages([
-        Page("chat_app/main.py", "Social Gen Pod"),
-        Page("chat_app/callback.py", "callback"),
-    ])
+    show_pages(
+        [
+            Page("chat_app/main.py", "Social Gen Pod"),
+            Page("chat_app/callback.py", "callback"),
+        ]
+    )
     hide_pages(["callback"])
     st.title("Social Gen Pod 🐢")
     st.sidebar.title("Options")
