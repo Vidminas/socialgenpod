@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
 from langchain.schema import messages_from_dict
@@ -7,6 +8,20 @@ from .chains import make_conversation_chain
 from .config import get_config
 
 app = FastAPI()
+
+origins = [
+    # "http://localhost:8080",
+    "*",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 config = get_config()
 
 
