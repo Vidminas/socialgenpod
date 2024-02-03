@@ -8,6 +8,7 @@ from langchain_core.chat_history import BaseChatMessageHistory
 from langchain.schema import messages_to_dict
 from chat_app.solid_message_history import SolidChatMessageHistory
 from chat_app.solid_pod_utils import SolidPodUtils
+from solid_oidc_client import SolidAuthSession
 
 hostname = os.environ.get("WEBSITE_HOSTNAME")
 if hostname is not None:
@@ -140,6 +141,11 @@ def print_state_messages(history: BaseChatMessageHistory):
             st.markdown(message.content)
 
 
+def get_auth_headers(st, url, method):
+    solid_auth = SolidAuthSession.deserialize(st.session_state["solid_token"])
+    return solid_auth.get_auth_headers(url, method)
+
+
 def main():
     st.set_page_config(page_title="Social Gen Pod", page_icon="🐢")
     show_pages(
@@ -179,12 +185,15 @@ def main():
             history.add_user_message(prompt)
 
             with st.spinner("LLM is thinking...."):
+                url = "http://localhost:5000/completions/"
+                auth_headers = get_auth_headers(st, url, 'POST')
                 response = requests.post(
-                    "http://localhost:5000/completions/",
+                    url,
                     json={
                         "model": selected_llm,
                         "messages": messages_to_dict(history.messages),
                     },
+                    headers=auth_headers,
                 )
             st.session_state["input_disabled"] = False
             if not response.ok:
