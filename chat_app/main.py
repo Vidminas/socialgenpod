@@ -1,10 +1,13 @@
 import os
+from urllib.parse import unquote
+
 import requests
 import streamlit as st
 from st_pages import Page, show_pages, hide_pages
 from langchain_core.chat_history import BaseChatMessageHistory
 from langchain.schema import messages_to_dict
 from chat_app.solid_message_history import SolidChatMessageHistory
+from chat_app.solid_pod_utils import SolidPodUtils
 
 hostname = os.environ.get("WEBSITE_HOSTNAME")
 if hostname is not None:
@@ -15,43 +18,42 @@ else:
 
 def setup_login_sidebar():
     from chat_app.solid_oidc_button import SolidOidcComponent
-    from solid_oidc_client import SolidAuthSession
-
-    # Default IDP list from https://solidproject.org/users/get-a-pod
-    solid_server_url = st.sidebar.selectbox(
-        "Solid ID Provider",
-        (
-            "https://solidcommunity.net/",
-            "https://login.inrupt.com/",
-            "https://solidweb.org/",
-            "https://trinpod.us/",
-            "https://get.use.id/",
-            "https://solidweb.me/",
-            "https://datapod.igrant.io/",
-            "https://solid.redpencil.io/",
-            "https://teamid.live/",
-            "Other...",
-        ),
-        disabled="solid_token" in st.session_state,
-    )
-    if solid_server_url == "Other...":
-        solid_server_url = st.sidebar.text_input(
-            "Solid Server URL",
-            "https://solidpod.azurewebsites.net",
-            disabled="solid_token" in st.session_state,
-        )
-
-    if "solid_idps" not in st.session_state:
-        st.session_state["solid_idps"] = {}
-
-    if solid_server_url not in st.session_state["solid_idps"]:
-        st.session_state["solid_idps"][solid_server_url] = SolidOidcComponent(
-            solid_server_url
-        )
-
-    solid_client = st.session_state["solid_idps"][solid_server_url]
 
     if "solid_token" not in st.session_state:
+        # Default IDP list from https://solidproject.org/users/get-a-pod
+        solid_server_url = st.sidebar.selectbox(
+            "Solid ID Provider",
+            (
+                "https://solidcommunity.net/",
+                "https://login.inrupt.com/",
+                "https://solidweb.org/",
+                "https://trinpod.us/",
+                "https://get.use.id/",
+                "https://solidweb.me/",
+                "https://datapod.igrant.io/",
+                "https://solid.redpencil.io/",
+                "https://teamid.live/",
+                "Other...",
+            ),
+            disabled="solid_token" in st.session_state,
+        )
+        if solid_server_url == "Other...":
+            solid_server_url = st.sidebar.text_input(
+                "Solid Server URL",
+                "https://solidpod.azurewebsites.net",
+                disabled="solid_token" in st.session_state,
+            )
+
+        if "solid_idps" not in st.session_state:
+            st.session_state["solid_idps"] = {}
+
+        if solid_server_url not in st.session_state["solid_idps"]:
+            st.session_state["solid_idps"][solid_server_url] = SolidOidcComponent(
+                solid_server_url
+            )
+
+        solid_client = st.session_state["solid_idps"][solid_server_url]
+
         with st.sidebar:
             result = solid_client.authorize_button(
                 name="Login with Solid",
@@ -67,8 +69,8 @@ def setup_login_sidebar():
                 st.session_state["solid_token"] = result["token"]
                 st.rerun()
     else:
-        solid_auth = SolidAuthSession.deserialize(st.session_state["solid_token"])
-        st.sidebar.markdown(f"Logged in as <{solid_auth.get_web_id()}>")
+        solid_utils = SolidPodUtils(st.session_state["solid_token"])
+        st.sidebar.markdown(f"Logged in as <{solid_utils.webid}>")
 
         def logout():
             # TODO: this should also revoke the token, but not implemented yet
@@ -78,11 +80,53 @@ def setup_login_sidebar():
 
         st.sidebar.button("Log Out", on_click=logout)
 
+        threads = solid_utils.list_container_items(solid_utils.workspace_uri)
+        if "msg_history" not in st.session_state:
+            st.session_state["msg_history"] = SolidChatMessageHistory(
+                st.session_state["solid_token"],
+                thread_uri=threads[0] if len(threads) else None,
+            )
 
-def init_messages(history: BaseChatMessageHistory) -> None:
-    clear_button = st.sidebar.button("Clear Conversation", key="clear")
-    if clear_button or len(history.messages) == 0:
-        history.clear()
+        def switch_active_thread(new_thread_uri):
+            if new_thread_uri != st.session_state["msg_history"].thread_uri:
+                st.session_state["msg_history"] = SolidChatMessageHistory(
+                    st.session_state["solid_token"], new_thread_uri
+                )
+
+        st.sidebar.divider()
+        st.sidebar.caption("Chats")
+
+        for thread in threads:
+            thread_label = unquote(
+                thread.removeprefix(solid_utils.workspace_uri).removesuffix(".ttl")
+            )
+            with st.sidebar:
+                col1, col2 = st.columns([5, 1])
+                col1.button(
+                    label=thread_label,
+                    key=thread,
+                    on_click=switch_active_thread,
+                    args=(thread,),
+                    type="primary"
+                    if thread == st.session_state["msg_history"].thread_uri
+                    else "secondary",
+                    use_container_width=True,
+                )
+                col2.button(
+                    label=":wastebasket:",
+                    key="del_" + thread,
+                    help="Delete " + thread_label,
+                    on_click=st.session_state["msg_history"].clear,
+                )
+        if not len(threads):
+            st.sidebar.write("Nothing here yet... Start typing on the right ->")
+        st.sidebar.button(
+            label="Start new conversation",
+            on_click=switch_active_thread,
+            args=(None,),
+            use_container_width=True,
+        )
+        st.sidebar.divider()
 
 
 def print_state_messages(history: BaseChatMessageHistory):
@@ -115,7 +159,6 @@ def main():
                 st.session_state["solid_token"]
             )
         history = st.session_state["msg_history"]
-        init_messages(history)
         print_state_messages(history)
 
         if "llm_options" not in st.session_state:

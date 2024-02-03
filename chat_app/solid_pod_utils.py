@@ -9,6 +9,8 @@ pim_ns = Namespace("http://www.w3.org/ns/pim/space#")
 solid_ns = Namespace("http://www.w3.org/ns/solid/terms#")
 ldp_ns = Namespace("http://www.w3.org/ns/ldp#")
 
+CONFIG_RESOURCE_NAME = "_config.ttl"
+
 
 def get_item_name(url: str) -> str:
     if url[-1] == "/":
@@ -29,7 +31,7 @@ class SolidPodUtils:
         solid_token: A serialized SolidAuthSession
     """
 
-    def __init__(self, solid_token):
+    def __init__(self, solid_token: str):
         self.solid_auth = SolidAuthSession.deserialize(solid_token)
         self.session = requests.Session()
 
@@ -101,10 +103,15 @@ class SolidPodUtils:
                 f"}}"
             )
             self.update_solid_item(private_index_uri, sparql)
+
         if not self.is_solid_item_available(self.workspace_uri):
             self.create_solid_item(self.workspace_uri)
 
-    def is_solid_item_available(self, url) -> bool:
+        self.config_uri = self.workspace_uri + CONFIG_RESOURCE_NAME
+        if not self.is_solid_item_available(self.config_uri):
+            self.create_solid_item(self.config_uri)
+
+    def is_solid_item_available(self, url: str) -> bool:
         try:
             res = self.session.head(
                 url,
@@ -115,7 +122,7 @@ class SolidPodUtils:
         except requests.exceptions.ConnectionError:
             return False
 
-    def create_solid_item(self, uri: str) -> bool:
+    def create_solid_item(self, uri: str) -> None:
         res = self.session.put(
             uri,
             data=None,
@@ -130,9 +137,10 @@ class SolidPodUtils:
                 **self.solid_auth.get_auth_headers(uri, "PUT"),
             },
         )
-        return res.ok
-    
-    def read_solid_item(self, uri) -> Graph:
+        if not res.ok:
+            raise RuntimeError("Error creating item " + uri + ": " + res.text)
+
+    def read_solid_item(self, uri: str) -> Graph:
         content = Graph()
         content.bind("solid", solid_ns)
         content.bind("pim", pim_ns)
@@ -144,10 +152,22 @@ class SolidPodUtils:
                 **self.solid_auth.get_auth_headers(uri, "GET"),
             },
         )
+        if not res.ok:
+            raise RuntimeError("Error reading item " + uri + ": " + res.text)
         content.parse(data=res.text, publicID=uri)
         return content
 
-    def update_solid_item(self, uri: str, sparql: str):
+    def list_container_items(
+        self, uri: str, ignore_resource_names=[CONFIG_RESOURCE_NAME]
+    ) -> list[URIRef]:
+        container_graph = self.read_solid_item(uri)
+        return [
+            item
+            for item in container_graph.objects(URIRef(uri), ldp_ns.contains)
+            if item.removeprefix(uri) not in ignore_resource_names
+        ]
+
+    def update_solid_item(self, uri: str, sparql: str) -> None:
         res = self.session.patch(
             url=uri,
             data=sparql.encode("utf-8"),
@@ -156,11 +176,13 @@ class SolidPodUtils:
                 **self.solid_auth.get_auth_headers(uri, "PATCH"),
             },
         )
-        return res.ok
+        if not res.ok:
+            raise RuntimeError("Error updating item " + uri + ": " + res.text)
 
-    def delete_solid_item(self, uri: str):
+    def delete_solid_item(self, uri: str) -> None:
         res = self.session.delete(
             uri,
             headers=self.solid_auth.get_auth_headers(uri, "DELETE"),
         )
-        return res.ok
+        if not res.ok:
+            raise RuntimeError("Error deleting item " + uri + ": " + res.text)
