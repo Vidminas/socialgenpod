@@ -26,7 +26,7 @@ genpod-chat = "chat_app.main:cli"
 genpod-llm = "llm_service.main:main"
 
 [tool.setuptools]
-packages = ["chat_app", "llm_service"]
+packages = ["chat_app", "chat_app.apis", "llm_service"]
 
 [tool.setuptools.dynamic]
 dependencies = { file = ["requirements.txt"] }
