@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
@@ -6,6 +6,7 @@ from langchain.schema import messages_from_dict
 
 from .chains import make_conversation_chain
 from .config import get_config
+from .solid_utils import attessPossession
 
 app = FastAPI()
 
@@ -28,6 +29,19 @@ config = get_config()
 class ChatCompletionRequestData(BaseModel):
     model: str
     messages: list[dict]
+
+
+def checkIdentity(request: Request):
+    method = 'POST'
+    webid = request.headers.get('webid')
+    authorization = request.headers.get('Authorization')
+    dpop = request.headers.get('DPoP')
+    host = request.headers.get('X-Forwarded-Host') or request.url.hostname  # Use X-Forwarded-For in case there is a reverse proxy in-between the client and the server
+    protocol = request.headers.get('X-Forwarded-Protocol') or request.url.scheme  # Same as above
+    path_prefix = ''  # Needed if deployed to a (sub)path instead of root of the hostname
+    request_url = f"{protocol}://{host}{path_prefix}{request.url.path}"
+    request_url = 'http://localhost:5000/completions/'
+    return attessPossession(authorization, dpop, method, request_url, webid)
 
 
 @app.get("/")
@@ -77,7 +91,10 @@ def create_embeddings():
 
 
 @app.post("/completions/")
-def chat_completion(req: ChatCompletionRequestData) -> str:
+def chat_completion(req: ChatCompletionRequestData, request: Request) -> str:
+    if not checkIdentity(request):
+        raise HTTPException(400, detail='WebID attestation failed')
+
     selected_model_idx = -1
     for idx, llm in enumerate(config["llms"]):
         if llm["model"] == req.model:
