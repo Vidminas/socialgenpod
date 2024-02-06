@@ -52,13 +52,14 @@ Run the LLM service provider using `genpod-llm`.
 
 If you use this work, please consider citing
 
+```
 @article{vid2023sgp,
       title={SocialGenPod: Privacy-Friendly Generative AI Social Web Applications with Decentralised Personal Data Stores}, 
       author={Vidminas Vizgirda and Rui Zhao and Naman Goel},
       howpublished = {\url{https://github.com/Vidminas/socialgenpod/blob/main/paper/socialgenpod_paper.pdf},
       year={2024}
 }
-
+```
 
 ## Acknowledgments
 
