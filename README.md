@@ -50,7 +50,7 @@ Run the LLM service provider using `genpod-llm`.
 
 ## Citing this work
 
-If you use this work, please consider citing
+If this work is relevant to your research or if you use it in your work, please consider citing
 
 ```
 @article{vid2023sgp,
