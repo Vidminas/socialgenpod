@@ -3,7 +3,9 @@ uvicorn[standard]
 pydantic>=2.0.0
 chromadb>=0.4.16
 ctransformers>=0.2.25,<0.3.0
+sentence-transformers>=2.5.1
 deepmerge>=1.1.0,<2.0.0
 InstructorEmbedding>=1.0.1,<2.0.0
 openai
 langchain-community
+langchainhub

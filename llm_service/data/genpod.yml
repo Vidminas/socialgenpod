@@ -2,10 +2,6 @@ embeddings:
   model: hkunlp/instructor-large
 
 llms:
-  - model_framework: huggingface
-    model: cerebras/Cerebras-GPT-111M
-    pipeline_kwargs:
-      max_new_tokens: 256
   - model_framework: ctransformers
     model: TheBloke/orca_mini_3B-GGML
     model_file: orca-mini-3b.ggmlv3.q4_0.bin
@@ -13,8 +9,18 @@ llms:
     config:
       context_length: 1024
       max_new_tokens: 256
-
-download: false
+  - model_framework: huggingface
+    model: cerebras/Cerebras-GPT-111M
+    pipeline_kwargs:
+      max_new_tokens: 256
+  # - model_framwork: huggingface
+  #   model: RWKV/HF_v5-Eagle-7B
+  # - model_framework: huggingface
+  #   model: mistralai/Mistral-7B-Instruct-v0.2
+  # - model_framework: huggingface
+  #   model: microsoft/phi-2
+  
+download: True
 
 host: localhost
 port: 5000

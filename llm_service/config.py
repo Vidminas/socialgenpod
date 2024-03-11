@@ -12,6 +12,7 @@ def _get_config(path: Union[Path, str]) -> Dict[str, Any]:
     path = Path(path)
     if path.is_dir():
         path = path / FILENAME
+    print("Loading config from", path)
     with open(path) as f:
         return yaml.safe_load(f)
 
