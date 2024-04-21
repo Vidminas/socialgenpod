@@ -11,17 +11,6 @@ from chat_app.apis.demo_api import DemoEmbeddingsAPI, DemoLLMAPI
 from chat_app.apis.openai_api import OpenAIEmbeddingsAPI, OpenAILLMAPI
 
 
-@st.cache_data()
-def get_callback_uri():
-    hostname = os.environ.get("WEBSITE_HOSTNAME")
-    if hostname is not None:
-        OAUTH_CALLBACK_URI = f"https://{hostname}/callback"
-    else:
-        OAUTH_CALLBACK_URI = "http://localhost:8501/callback"
-    print(f"Auth endpoint set to {OAUTH_CALLBACK_URI}")
-    return OAUTH_CALLBACK_URI
-
-
 def show_login_sidebar():
     from chat_app.solid_oidc_button import SolidOidcComponent
 
@@ -54,7 +43,8 @@ def show_login_sidebar():
 
     if solid_server_url not in st.session_state["solid_idps"]:
         st.session_state["solid_idps"][solid_server_url] = SolidOidcComponent(
-            solid_server_url
+            solid_server_url,
+            
         )
 
     solid_client = st.session_state["solid_idps"][solid_server_url]
@@ -63,7 +53,6 @@ def show_login_sidebar():
         result = solid_client.authorize_button(
             name="Login with Solid",
             icon="https://raw.githubusercontent.com/CommunitySolidServer/CommunitySolidServer/main/templates/images/solid.svg",
-            redirect_uri=get_callback_uri(),
             key="solid",
             height=670,
             width=850,

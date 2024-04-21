@@ -3,8 +3,6 @@
 
   "client_id": "https://raw.githubusercontent.com/Vidminas/socialgenpod/main/chat_app/data/client_id.json",
   "client_name": "Social Gen Pod",
-  "redirect_uris": ["https://socialgenpod.ryey.icu/callback", "https://socialgenpod.azurewebsites.net/callback", "http://localhost:8501/callback"],
-  "post_logout_redirect_uris": ["https://socialgenpod.ryey.icu", "https://socialgenpod.azurewebsites.net", "http://localhost:8501"],
   "client_uri": "https://github.com/Vidminas/socialgenpod",
   "logo_uri" : "https://raw.githubusercontent.com/Vidminas/socialgenpod/main/chat_app/data/turtle.png",
   "tos_uri" : "https://github.com/Vidminas/socialgenpod/blob/main/README.md",

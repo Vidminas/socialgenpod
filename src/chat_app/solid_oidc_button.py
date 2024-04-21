@@ -1,3 +1,6 @@
+import os
+import json
+from pathlib import Path
 import urllib.parse
 import requests
 
@@ -17,7 +20,24 @@ from streamlit_oauth import (
 
 @st.cache_data(ttl=300)
 def generate_pkce_pair(client_id):
+    # client_id is not used but required to cache separate pkce pairs for different clients
     return create_verifier_challenge()
+
+
+@st.cache_data()
+def get_hostname_uri():
+    hostname = os.environ.get("WEBSITE_HOSTNAME")
+    if hostname is not None:
+        return f"https://{hostname}"
+    else:
+        return "http://localhost:8501"
+
+
+@st.cache_data()
+def get_callback_uri():
+    OAUTH_CALLBACK_URI = f"{get_hostname_uri()}/callback"
+    print(f"Auth endpoint set to {OAUTH_CALLBACK_URI}")
+    return OAUTH_CALLBACK_URI
 
 
 class SolidOidcComponent(OAuth2Component):
@@ -34,13 +54,18 @@ class SolidOidcComponent(OAuth2Component):
 
         if "none" not in client.provider_info["token_endpoint_auth_methods_supported"]:
             # can't use public client, must register with server
-            res = requests.get(self.client_id)
-            client_metadata = res.json()
+            metadata_path = Path(__file__).parent / "data/client_id.json"
+            with metadata_path.open() as f:
+                client_metadata = json.load(f)
+
             registration_response = client.client.register(
-                client.provider_info['registration_endpoint'],
-                **client_metadata)
-            self.client_id = registration_response['client_id']
-            self.client_secret = registration_response['client_secret']
+                client.provider_info["registration_endpoint"],
+                redirect_uris=[get_callback_uri()],
+                post_logout_redirect_uris=[get_hostname_uri()],
+                **client_metadata,
+            )
+            self.client_id = registration_response["client_id"]
+            self.client_secret = registration_response["client_secret"]
 
         super().__init__(
             client_id=None,
@@ -52,18 +77,18 @@ class SolidOidcComponent(OAuth2Component):
             client=client,
         )
 
-    def create_login_uri(self, state, redirect_uri, extras_params):
+    def create_login_uri(self, state, extras_params):
         code_verifier, code_challenge = generate_pkce_pair(self.client.client_id)
         authorization_endpoint = self.client.provider_info["authorization_endpoint"]
         self.client.storage.set(f"{state}_code_verifier", code_verifier)
-        self.client.storage.set(f"{state}_redirect_url", redirect_uri)
+        self.client.storage.set(f"{state}_redirect_url", get_callback_uri())
 
         params = {
             "code_challenge": code_challenge,
             "code_challenge_method": "S256",
             "state": state,
             "response_type": "code",
-            "redirect_uri": redirect_uri,
+            "redirect_uri": get_callback_uri(),
             "client_id": self.client_id,
             # offline_access: also asks for refresh token
             "scope": "openid offline_access",
@@ -75,7 +100,6 @@ class SolidOidcComponent(OAuth2Component):
     def authorize_button(
         self,
         name,
-        redirect_uri,
         height=800,
         width=600,
         key=None,
@@ -84,7 +108,7 @@ class SolidOidcComponent(OAuth2Component):
         use_container_width=False,
     ):
         state = _generate_state(key)
-        authorize_request = self.create_login_uri(state, redirect_uri, extras_params)
+        authorize_request = self.create_login_uri(state, extras_params)
         result = _authorize_button(
             authorization_url=authorize_request,
             name=name,
@@ -109,11 +133,15 @@ class SolidOidcComponent(OAuth2Component):
 
                 res = requests.post(
                     token_endpoint,
-                    auth=(self.client_id, self.client_secret) if self.client_secret is not None else None,
+                    auth=(
+                        (self.client_id, self.client_secret)
+                        if self.client_secret is not None
+                        else None
+                    ),
                     data={
                         "grant_type": "authorization_code",
                         "client_id": self.client_id,
-                        "redirect_uri": redirect_uri,
+                        "redirect_uri": get_callback_uri(),
                         "code": result["code"],
                         "code_verifier": code_verifier,
                     },
