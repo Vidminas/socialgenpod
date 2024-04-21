@@ -117,7 +117,7 @@ class DemoLLMAPI(BaseLLMAPI):
             json={
                 "model": selected_llm,
                 "prompt": prompt,
-                "context": [doc.to_json() for doc in relevant_documents],
+                "context": [doc.to_json() for doc in relevant_documents] if relevant_documents else [],
             },
         )
         if not response.is_redirect:

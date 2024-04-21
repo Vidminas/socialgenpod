@@ -2,7 +2,7 @@ from urllib.parse import quote
 
 from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_core.messages import BaseMessage
-from rdflib import Graph, BNode, URIRef, Literal, RDF, PROF, XSD
+from rdflib import Graph, BNode, URIRef, Literal, RDF, XSD, SDO, PROF
 from rdflib.collection import Collection
 
 from chat_app.solid_pod_utils import SolidPodUtils
@@ -26,16 +26,18 @@ class SolidChatMessageHistory(BaseChatMessageHistory):
         """Retrieve the current list of messages"""
         if self.thread_uri is None:
             return []
-    
+
         if not self.solid_utils.is_solid_item_available(self.thread_uri):
             self.solid_utils.create_solid_item(self.thread_uri)
 
         self.graph = self.solid_utils.read_solid_item(self.thread_uri)
-        list_node = self.graph.value(predicate=RDF.type, object=RDF.List)
-        if list_node is None:
+        conversation = self.graph.value(predicate=RDF.type, object=SDO.Conversation)
+        if conversation is None:
             return []
 
-        rdf_list = Collection(self.graph, list_node)
+        rdf_list = Collection(
+            self.graph, self.graph.value(subject=conversation, predicate=SDO.hasPart)
+        )
         msgs = [
             BaseMessage(
                 content=self.graph.value(
@@ -50,11 +52,15 @@ class SolidChatMessageHistory(BaseChatMessageHistory):
     def add_message(self, message: BaseMessage) -> None:
         """Add a message to the session memory"""
         if self.thread_uri is None:
-            thread_name = quote(" ".join(message.content.split(maxsplit=3)[:3]), safe="")
+            thread_name = quote(
+                " ".join(message.content.split(maxsplit=3)[:3]), safe=""
+            )
             candidate_uri = self.solid_utils.workspace_uri + thread_name + ".ttl"
             i = 2
             while self.solid_utils.is_solid_item_available(candidate_uri):
-                candidate_uri = self.solid_utils.workspace_uri + thread_name + f" #{i}.ttl"
+                candidate_uri = (
+                    self.solid_utils.workspace_uri + thread_name + f" #{i}.ttl"
+                )
                 i += 1
             self.thread_uri = candidate_uri
             self.solid_utils.create_solid_item(self.thread_uri)
@@ -72,13 +78,18 @@ class SolidChatMessageHistory(BaseChatMessageHistory):
             (msg, PROF.hasRole, Literal(message.type, datatype=XSD.string))
         )
 
-        list_node = self.graph.value(predicate=RDF.type, object=RDF.List)
-        if list_node is None:
+        msgs_node = self.graph.value(predicate=RDF.type, object=SDO.Conversation)
+        if msgs_node is None:
             msgs_node = URIRef(f"{self.thread_uri}#messages")
-            update_graph.add((msgs_node, RDF.type, RDF.List))
+            update_graph.add((msgs_node, RDF.type, SDO.Conversation))
 
-            msgs = Collection(update_graph, msgs_node)
-            msgs.append(msg)
+            first_list_node = BNode()
+            update_graph.add((first_list_node, RDF.type, RDF.List))
+            update_graph.add((first_list_node, RDF.first, msg))
+            update_graph.add((first_list_node, RDF.rest, RDF.nil))
+
+            update_graph.add((msgs_node, SDO.hasPart, first_list_node))
+            update_graph.add((first_list_node, SDO.isPartOf, msgs_node))
 
             triples = "\n".join(
                 [
@@ -89,6 +100,7 @@ class SolidChatMessageHistory(BaseChatMessageHistory):
             sparql = f"INSERT DATA {{{triples}}}"
         else:
             new_item = BNode()
+            update_graph.add((new_item, RDF.type, RDF.List))
             update_graph.add((new_item, RDF.first, msg))
             update_graph.add((new_item, RDF.rest, RDF.nil))
 
@@ -99,11 +111,10 @@ class SolidChatMessageHistory(BaseChatMessageHistory):
                 ]
             )
             sparql = f"""
-                PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-                DELETE {{ ?end rdf:rest rdf:nil }}
-                INSERT {{ ?end rdf:rest {new_item.n3()} .\n
+                DELETE {{ ?end {RDF.rest.n3()} {RDF.nil.n3()} }}
+                INSERT {{ ?end {RDF.rest.n3()} {new_item.n3()} .\n
                           {triples} }}
-                WHERE {{ ?end  rdf:rest  rdf:nil }}
+                WHERE {{ ?end  {RDF.rest.n3()} {RDF.nil.n3()} }}
             """
 
         # Update remote copy
