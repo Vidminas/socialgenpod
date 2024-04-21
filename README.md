@@ -26,26 +26,34 @@ If you want to run the LLM service with GPU acceleration, then you'll also need 
 
 ## Configuration
 
+### Configuring the chat app
+
+If running locally, you don't need to do anything. If deploying remotely, you may need to define
+the `WEBSITE_HOSTNAME` environment variable to point to your chat app url (Azure hosting does
+this automatically).
+
 ### Configuring the retrieval service provider
 
 If running locally, navigate into the `llm_service` directory and copy the provided `.env.sample` file to a `.env` file. Then fill in the values with desired details for a retrieval service provider.
 
 If deploying remotely, instead of using the `.env` file, configure your cloud provider setup to include the environment variables from `.env.sample`.
 
-Caveat: due to non-standartisation of client credentials authentication, the retrieval service provider must be registered with a Community Solid Server (Node Solid Servers like <https://solidcommunity.net> and Enterprise Solid Servers are currently not supported). This only applies to the retrieval service provider, the chat app users can use any Solid server as their identity provider.
+⚠ Caveat: due to non-standartisation of client credentials authentication, the retrieval service provider must be registered with a Community Solid Server (Node Solid Servers like <https://solidcommunity.net> and Enterprise Solid Servers are currently not supported). This only applies to the retrieval service provider, the chat app users can use any Solid server as their identity provider.
 
 
 ### Granting access to documents to the retrieval service provider
 
 For Node Solid Servers, you can use: <https://solidos.github.io/mashlib/dist/browse.html> (see <https://github.com/SolidOS/userguide#manage-your-trusted-applications> for guidance).
 
-For both Community Solid Servers and Node Solid Servers, you can also use: <https://penny.vincenttunru.com/>. Point Penny to browse the pod in which the files you would like to share are stored. Then login as the pod owner. Browse to the resource you would like to share and, under the "Linked Resources" section, press "Add Access Control List". This will create a new `.acl` file with all permissions granted to the pod owner and nothing else. Create a "new thing" in the ACL file, choose "Convert to Access Control" and grant only the "Read" permission to the webid of the retrieval service provider, e.g. `https://solidpod.azurewebsites.net/socialgenpod/profile/card#me`.
+For both Community Solid Servers and Node Solid Servers, you can also use: <https://penny.vincenttunru.com/>. Point Penny to browse the pod in which the files you would like to share are stored. Then login as the pod owner. Navigate to the resource you would like to share and, under the "Linked Resources" section, press "Add Access Control List". This will create a new `.acl` file with all permissions granted to the pod owner and nothing else. Create a "new thing" in the ACL file, choose "Convert to Access Control" and grant only the "Read" permission to the webid of the retrieval service provider, e.g. `https://solidpod.azurewebsites.net/socialgenpod/profile/card#me`.
 
 ### Configuring the LLM provider
 
 If you would like to add different language models or change the configuration, create a file called `genpod.yml` in your working directory before running `genpod-llm`. This will be merged with the configuration in `llm_service/data/genpod.yml` -- see that file for example syntax.
 
 For example, add `download: True` in your configuration to enable downloading models specified in the configuration file -- otherwise only already locally stored models will be possible to use.
+
+You can also change the hostname and port the service runs on.
 
 For other configuration, such as adding GPU acceleration, see <https://github.com/Vidminas/chatdocs-streamlit>. The configuration file works the same way.
 

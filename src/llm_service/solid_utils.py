@@ -101,6 +101,11 @@ def register_retrieval_service() -> requests.Session:
     email = os.environ.get("RETRIEVAL_SERVICE_EMAIL")
     password = os.environ.get("RETRIEVAL_SERVICE_PASSWORD")
     webid = os.environ.get("RETRIEVAL_SERVICE_WEBID")
+    if name is None or email is None or password is None or webid is None:
+        raise RuntimeError(
+            f"One or more retrieval service environment variables are not configured!\n"
+            f"{name = }, {email = }, {password = }, {webid = }"
+        )
 
     try:
         account = server.create_css_account(name, email, password)
