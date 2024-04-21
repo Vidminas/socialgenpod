@@ -6,8 +6,6 @@ This project builds on the work from [ChatDocs-Streamlit](https://github.com/Vid
 
 ## Setup
 
-Based on <https://stackoverflow.com/questions/76722680/what-is-the-best-way-to-combine-conda-with-standard-python-packaging-tools-e-g>
-
 ### Installation with pip
 
 ```bash
@@ -21,31 +19,10 @@ pip install -e .
 pip install -e .[llm]
 ```
 
-### Installation with conda
+If you want to run the LLM service with GPU acceleration, then you'll also need to:
 
-When creating an environment from scratch:
-
-```bash
-conda create -n ENVNAME "python>=3.11" --file requirements.txt
-```
-
-If adding to an established environment, use update:
-
-```bash
-conda update --name ENVNAME --file requirements.txt
-```
-
-For optional dependencies:
-
-```bash
-conda update --name ENVNAME --freeze-installed --file requirements-llm.txt
-```
-
-Then install this package using:
-
-```bash
-pip install --no-build-isolation --no-deps .
-```
+1. Install PyTorch with CUDA enabled by following the instructions [here](https://pytorch.org/get-started/locally/)
+2. `pip install ctransformers[cuda]`
 
 ## Configuration
 
