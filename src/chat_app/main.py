@@ -227,8 +227,8 @@ def main():
     st.set_page_config(page_title="Social Gen Pod", page_icon="🐢")
     show_pages(
         [
-            Page("chat_app/main.py", "Social Gen Pod"),
-            Page("chat_app/callback.py", "callback"),
+            Page("src/chat_app/main.py", "Social Gen Pod"),
+            Page("src/chat_app/callback.py", "callback"),
         ]
     )
     hide_pages(["callback"])

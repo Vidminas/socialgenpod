@@ -25,8 +25,12 @@ classifiers = [
 genpod-chat = "chat_app.main:cli"
 genpod-llm = "llm_service.main:main"
 
-[tool.setuptools]
-packages = ["chat_app", "chat_app.apis", "llm_service"]
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"*" = ["*.toml", "*.yml", "*.json", "*.png"]
+"chat_app" = [".streamlit/*"]
 
 [tool.setuptools.dynamic]
 dependencies = { file = ["requirements.txt"] }

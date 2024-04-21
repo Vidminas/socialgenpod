@@ -9,18 +9,14 @@ llms:
     config:
       context_length: 1024
       max_new_tokens: 256
+  - model_framwork: huggingface
+    model: RWKV/HF_v5-Eagle-7B
   - model_framework: huggingface
-    model: cerebras/Cerebras-GPT-111M
-    pipeline_kwargs:
-      max_new_tokens: 256
-  # - model_framwork: huggingface
-  #   model: RWKV/HF_v5-Eagle-7B
-  # - model_framework: huggingface
-  #   model: mistralai/Mistral-7B-Instruct-v0.2
-  # - model_framework: huggingface
-  #   model: microsoft/phi-2
+    model: mistralai/Mistral-7B-Instruct-v0.2
+  - model_framework: huggingface
+    model: microsoft/phi-2
   
-download: True
+download: true
 
 host: localhost
 port: 5000
