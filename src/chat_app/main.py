@@ -2,7 +2,6 @@ import os
 from urllib.parse import unquote
 
 import streamlit as st
-from st_pages import Page, show_pages, hide_pages
 from langchain_core.chat_history import BaseChatMessageHistory
 
 from chat_app.solid_message_history import SolidChatMessageHistory
@@ -225,13 +224,6 @@ def print_state_messages(history: BaseChatMessageHistory):
 
 def main():
     st.set_page_config(page_title="Social Gen Pod", page_icon="🐢")
-    show_pages(
-        [
-            Page("src/chat_app/main.py", "Social Gen Pod"),
-            Page("src/chat_app/callback.py", "callback"),
-        ]
-    )
-    hide_pages(["callback"])
     st.title("Social Gen Pod 🐢")
     st.sidebar.title("Options")
 
@@ -324,6 +316,7 @@ def cli():
     from pathlib import Path
     from streamlit.web import cli as stcli
 
+    os.environ["STREAMLIT_CLIENT_SHOW_SIDEBAR_NAVIGATION"] = str(False)
     sys.argv = ["streamlit", "run", str(Path(__file__))] + sys.argv[1:]
     sys.exit(stcli.main())
 

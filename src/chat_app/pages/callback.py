@@ -4,6 +4,7 @@ import streamlit as st
 if __name__ == "__main__":
     if st.query_params.get("code") is None:
         st.error("This page should not be accessed directly.")
+        st.page_link("main.py", label="Return to Social Gen Pod", icon="🐢")
         st.stop()
     else:
         loader = """
