@@ -6,6 +6,7 @@ from langchain_core.chat_history import BaseChatMessageHistory
 
 from chat_app.solid_message_history import SolidChatMessageHistory
 from chat_app.solid_pod_utils import SolidPodUtils
+from chat_app.config_utils import read_config, write_config
 from chat_app.apis.base_api import BaseRetrievalServiceAPI, BaseLLMAPI
 from chat_app.apis.demo_api import DemoEmbeddingsAPI, DemoLLMAPI
 from chat_app.apis.openai_api import OpenAIEmbeddingsAPI, OpenAILLMAPI
@@ -65,37 +66,40 @@ def show_login_sidebar():
 
 
 def show_config(solid_utils: SolidPodUtils):
-    config = solid_utils.read_solid_item(solid_utils.config_uri)
-    if len(config):
-        return
-
-    with st.form("reuse-config-form"):
-        st.title("Reuse an existing configuration")
-        st.text_input("Configuration file URI")
-        st.form_submit_button("Import configuration")
+    default_retrieval_service, default_llm_service, default_docs_location = read_config(
+        solid_utils,
+        default_retrieval_service="http://localhost:5000/",
+        default_llm_service="http://localhost:5000/",
+        default_docs_location="",
+    )
+    
+    # with st.form("reuse-config-form"):
+    #     st.title("Reuse an existing configuration")
+    #     st.text_input("Configuration file URI")
+    #     st.form_submit_button("Import configuration")
 
     with st.container(border=True):
-        st.title("Or configure your chatbot service")
+        st.title("Configure your chatbot service")
         col1, col2 = st.columns((1, 2))
 
         embeddings_params = {
             "Demo": {
                 "label": "Retrieval service provider",
-                "value": "http://localhost:5000/",
+                "value": default_retrieval_service,
             },
-            "OpenAI": {
-                "label": "Secret Key",
-                "placeholder": "sk-...",
-                "key": "openai-embeddings-sk",
-            },
+            # "OpenAI": {
+            #     "label": "Secret Key",
+            #     "placeholder": "sk-...",
+            #     "key": "openai-embeddings-sk",
+            # },
         }
         llm_params = {
-            "Demo": {"label": "LLM provider", "value": "http://localhost:5000/"},
-            "OpenAI": {
-                "label": "Secret Key",
-                "placeholder": "sk-...",
-                "key": "openai-llm-sk",
-            },
+            "Demo": {"label": "LLM provider", "value": default_llm_service},
+            # "OpenAI": {
+            #     "label": "Secret Key",
+            #     "placeholder": "sk-...",
+            #     "key": "openai-llm-sk",
+            # },
         }
 
         embeddings_api = col1.selectbox(
@@ -108,7 +112,8 @@ def show_config(solid_utils: SolidPodUtils):
             llm_param = col2.text_input(**llm_params[llm_api])
 
             documents_location = st.text_input(
-                "Documents location URL for retrieval (optional)"
+                "Documents location URL for retrieval (optional)",
+                value=default_docs_location,
             )
 
             submitted = st.form_submit_button("Confirm")
@@ -124,7 +129,7 @@ def show_config(solid_utils: SolidPodUtils):
                 retrieval_service: BaseRetrievalServiceAPI = retrieval_providers[
                     embeddings_api
                 ](solid_utils, embeddings_param)
-                llm_provider: BaseLLMAPI = llm_providers[llm_api](
+                llm_service: BaseLLMAPI = llm_providers[llm_api](
                     solid_utils, llm_param
                 )
 
@@ -133,22 +138,19 @@ def show_config(solid_utils: SolidPodUtils):
 
                 st.session_state["provider_config"] = (
                     retrieval_service,
-                    llm_provider,
+                    llm_service,
                     documents_location,
                 )
+                write_config(
+                    solid_utils,
+                    embeddings_param,
+                    llm_param,
+                    documents_location,
+                )
+                st.rerun()
 
 
 def show_chats_sidebar(solid_utils: SolidPodUtils):
-    st.sidebar.markdown(f"Logged in as <{solid_utils.webid}>")
-
-    def logout():
-        # TODO: this should also revoke the token, but not implemented yet
-        del st.session_state["solid_token"]
-        st.session_state.pop("llm_options", None)
-        st.session_state.pop("msg_history", None)
-
-    st.sidebar.button("Log Out", on_click=logout)
-
     threads = solid_utils.list_container_items(solid_utils.workspace_uri)
     if "msg_history" not in st.session_state:
         st.session_state["msg_history"] = SolidChatMessageHistory(
@@ -221,17 +223,27 @@ def main():
         return
 
     solid_utils = SolidPodUtils(st.session_state["solid_token"])
-    show_chats_sidebar(solid_utils)
+    st.sidebar.markdown(f"Logged in as <{solid_utils.webid}>")
 
+    def logout():
+        # TODO: this should also revoke the token, but not implemented yet
+        del st.session_state["solid_token"]
+        st.session_state.pop("provider_config", None)
+        st.session_state.pop("llm_options", None)
+        st.session_state.pop("msg_history", None)
+
+    st.sidebar.button("Log Out", on_click=logout)
+    
     if "provider_config" not in st.session_state:
         show_config(solid_utils)
         return
     retrieval_service: BaseRetrievalServiceAPI = st.session_state["provider_config"][0]
-    llm_provider: BaseLLMAPI = st.session_state["provider_config"][1]
+    llm_service: BaseLLMAPI = st.session_state["provider_config"][1]
     documents_location: str = st.session_state["provider_config"][2]
+    show_chats_sidebar(solid_utils)
 
     st.sidebar.markdown(str(retrieval_service))
-    st.sidebar.markdown(str(llm_provider))
+    st.sidebar.markdown(str(llm_service))
 
     def reset_config():
         del st.session_state["provider_config"]
@@ -245,7 +257,7 @@ def main():
     )
 
     if "llm_options" not in st.session_state:
-        st.session_state["llm_options"] = llm_provider.get_llm_models()
+        st.session_state["llm_options"] = llm_service.get_llm_models()
     selected_llm = st.sidebar.radio("LLM", st.session_state["llm_options"])
 
     if "msg_history" not in st.session_state:
@@ -269,7 +281,7 @@ def main():
 
         if len(history.messages) > 1:
             with st.spinner("LLM is thinking..."):
-                condensed_prompt = llm_provider.condense_prompt_with_chat_history(
+                condensed_prompt = llm_service.condense_prompt_with_chat_history(
                     selected_llm, history.messages
                 )
                 with st.chat_message("ai"):
@@ -291,7 +303,7 @@ def main():
             relevant_documents = None
 
         with st.spinner("LLM is thinking..."):
-            ai_msg = llm_provider.chat_completion(
+            ai_msg = llm_service.chat_completion(
                 selected_llm, condensed_prompt, relevant_documents
             )
         with st.chat_message("ai"):

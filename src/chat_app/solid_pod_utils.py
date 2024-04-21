@@ -129,9 +129,11 @@ class SolidPodUtils:
             headers={
                 "Accept": "text/turtle",
                 "If-None-Match": "*",
-                "Link": f'{ldp_ns.BasicContainer.n3()}; rel="type"'
-                if uri.endswith("/")
-                else f'{ldp_ns.Resource.n3()}; rel="type"',
+                "Link": (
+                    f'{ldp_ns.BasicContainer.n3()}; rel="type"'
+                    if uri.endswith("/")
+                    else f'{ldp_ns.Resource.n3()}; rel="type"'
+                ),
                 "Slug": get_item_name(uri),
                 "Content-Type": "text/turtle",
                 **self.solid_auth.get_auth_headers(uri, "PUT"),
