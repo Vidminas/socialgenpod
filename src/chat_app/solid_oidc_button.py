@@ -52,20 +52,17 @@ class SolidOidcComponent(OAuth2Component):
         )
         client.provider_info = client.client.provider_config(solid_server_url)
 
-        if "none" not in client.provider_info["token_endpoint_auth_methods_supported"]:
-            # can't use public client, must register with server
-            metadata_path = Path(__file__).parent / "data/client_id.json"
-            with metadata_path.open() as f:
-                client_metadata = json.load(f)
+        metadata_path = Path(__file__).parent / "data/client_id.json"
+        with metadata_path.open() as f:
+            client_metadata = json.load(f)
 
-            registration_response = client.client.register(
-                client.provider_info["registration_endpoint"],
-                redirect_uris=[get_callback_uri()],
-                post_logout_redirect_uris=[get_hostname_uri()],
-                **client_metadata,
-            )
-            self.client_id = registration_response["client_id"]
-            self.client_secret = registration_response["client_secret"]
+        if (
+            "none" not in client.provider_info["token_endpoint_auth_methods_supported"]
+            or get_callback_uri() not in client_metadata["redirect_uris"]
+            or get_hostname_uri() not in client_metadata["post_logout_redirect_uris"]
+        ):
+            # can't use public client, must register with server
+            self.dynamic_client_register(client, client_metadata)
 
         super().__init__(
             client_id=None,
@@ -76,6 +73,18 @@ class SolidOidcComponent(OAuth2Component):
             revoke_token_endpoint=None,
             client=client,
         )
+
+    def dynamic_client_register(self, client: SolidOidcClient, client_metadata: dict):
+        if get_callback_uri() not in client_metadata["redirect_uris"]:
+            client_metadata["redirect_uris"].append(get_callback_uri())
+        if get_hostname_uri() not in client_metadata["post_logout_redirect_uris"]:
+            client_metadata["post_logout_redirect_uris"].append(get_hostname_uri())
+        registration_response = client.client.register(
+            client.provider_info["registration_endpoint"],
+            **client_metadata,
+        )
+        self.client_id = registration_response["client_id"]
+        self.client_secret = registration_response["client_secret"]
 
     def create_login_uri(self, state, extras_params):
         code_verifier, code_challenge = generate_pkce_pair(self.client.client_id)
@@ -91,7 +100,7 @@ class SolidOidcComponent(OAuth2Component):
             "redirect_uri": get_callback_uri(),
             "client_id": self.client_id,
             # offline_access: also asks for refresh token
-            "scope": "openid offline_access",
+            "scope": "openid offline_access webid",
         }
         if extras_params is not None:
             params = {**params, **extras_params}
@@ -108,9 +117,9 @@ class SolidOidcComponent(OAuth2Component):
         use_container_width=False,
     ):
         state = _generate_state(key)
-        authorize_request = self.create_login_uri(state, extras_params)
+        authorize_request_url = self.create_login_uri(state, extras_params)
         result = _authorize_button(
-            authorization_url=authorize_request,
+            authorization_url=authorize_request_url,
             name=name,
             popup_height=height,
             popup_width=width,
