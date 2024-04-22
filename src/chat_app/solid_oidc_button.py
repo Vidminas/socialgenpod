@@ -42,7 +42,7 @@ def get_callback_uri():
 
 class SolidOidcComponent(OAuth2Component):
     def __init__(self, solid_server_url: str):
-        self.client_id = "https://raw.githubusercontent.com/Vidminas/socialgenpod/main/chat_app/data/client_id.json"
+        self.client_id = "https://raw.githubusercontent.com/Vidminas/socialgenpod/main/src/chat_app/data/client_id.json"
         self.client_secret = None
 
         client = SolidOidcClient(storage=MemStore())
