@@ -4,6 +4,8 @@ Converse with an LLM provider of your choice. Store your documents and chat hist
 
 This project builds on the work from [ChatDocs-Streamlit](https://github.com/Vidminas/chatdocs-streamlit).
 
+[![SocialGenPod demo video](https://img.youtube.com/vi/SdqkJ_uDR4w/0.jpg)](https://www.youtube.com/watch?v=SdqkJ_uDR4w)
+
 ## Setup
 
 ### Installation with pip
@@ -30,22 +32,36 @@ If you want to run the LLM service with GPU acceleration, then you'll also need 
 
 If running locally, you don't need to do anything. If deploying remotely, you may need to define
 the `WEBSITE_HOSTNAME` environment variable to point to your chat app url (Azure hosting does
-this automatically).
+this automatically, on a Google Cloud VM you need to export the variable, for example: `export WEBSITE_HOSTNAME=34.105.136.95:8501`). Running over `https` is required when not on localhost.
 
 ### Configuring the retrieval service provider
 
-If running locally, navigate into the `llm_service` directory and copy the provided `.env.sample` file to a `.env` file. Then fill in the values with desired details for a retrieval service provider.
+If running locally or on a VM, navigate into the `llm_service` directory and copy the provided `.env.sample` file to a `.env` file. Then fill in the values with desired details for a retrieval service provider.
 
 If deploying remotely, instead of using the `.env` file, configure your cloud provider setup to include the environment variables from `.env.sample`.
 
-⚠ Caveat: due to non-standartisation of client credentials authentication, the retrieval service provider must be registered with a Community Solid Server (Node Solid Servers like <https://solidcommunity.net> and Enterprise Solid Servers are currently not supported). This only applies to the retrieval service provider, the chat app users can use any Solid server as their identity provider.
+<details>
+<summary>Example .env</summary>
+
+```sh
+RETRIEVAL_SERVICE_IDP=https://example.org
+RETRIEVAL_SERVICE_NAME=socialgenpod_retriever
+RETRIEVAL_SERVICE_EMAIL=retriever@example.org
+RETRIEVAL_SERVICE_PASSWORD=supersecret
+RETRIEVAL_SERVICE_WEBID=https://example.org/socialgenpod_retriever
+```
+</details>
+
+⚠ Caveat: due to non-standardisation of client credentials authentication, the retrieval service provider must be registered with a Community Solid Server (Node Solid Servers like <https://solidcommunity.net> and Enterprise Solid Servers are currently not supported). This only applies to the retrieval service provider, the chat app users can use any Solid server as their identity provider.
 
 
 ### Granting access to documents to the retrieval service provider
 
-For Node Solid Servers, you can use: <https://solidos.github.io/mashlib/dist/browse.html> (see <https://github.com/SolidOS/userguide#manage-your-trusted-applications> for guidance).
+For Solid Servers with Web Access Control (WAC / ACL), you can use either Mashlib or Penny. Access Control Policies (ACP) do not currently have a GUI for editing permissions.
 
-For both Community Solid Servers and Node Solid Servers, you can also use: <https://penny.vincenttunru.com/>. Point Penny to browse the pod in which the files you would like to share are stored. Then login as the pod owner. Navigate to the resource you would like to share and, under the "Linked Resources" section, press "Add Access Control List". This will create a new `.acl` file with all permissions granted to the pod owner and nothing else. Create a "new thing" in the ACL file, choose "Convert to Access Control" and grant only the "Read" permission to the webid of the retrieval service provider, e.g. `https://solidpod.azurewebsites.net/socialgenpod/profile/card#me`.
+Mashlib: <https://solidos.github.io/mashlib/dist/browse.html> (see <https://github.com/SolidOS/userguide#manage-your-trusted-applications> for guidance).
+
+Penny: <https://penny.vincenttunru.com/>. Point Penny to browse the pod in which the files you would like to share are stored. Then login as the pod owner. Navigate to the resource you would like to share and, under the "Linked Resources" section, press "Add Access Control List". This will create a new `.acl` file with all permissions granted to the pod owner and nothing else. Create a "new thing" in the ACL file, choose "Convert to Access Control" and grant only the "Read" permission to the webid of the retrieval service provider, e.g. `https://example.org/socialgenpod_retriever/profile/card#me`.
 
 ### Configuring the LLM provider
 
@@ -56,6 +72,36 @@ For example, add `download: True` in your configuration to enable downloading mo
 You can also change the hostname and port the service runs on.
 
 For other configuration, such as adding GPU acceleration, see <https://github.com/Vidminas/chatdocs-streamlit>. The configuration file works the same way.
+
+<details>
+<summary>Example genpod.yml with GPU acceleration</summary>
+
+```yaml
+host: 10.154.0.4
+embeddings:
+  model_kwargs:
+    device: cuda
+llms:
+  - model_framework: ctransformers
+    model: TheBloke/orca_mini_3B-GGML
+    model_file: orca-mini-3b.ggmlv3.q4_0.bin
+    model_type: llama
+    config:
+      context_length: 1024
+      max_new_tokens: 256
+      gpu_layers: 50
+  - model_framework: huggingface
+    model: RWKV/v5-EagleX-v2-7B-HF
+    model_kwargs:
+      trust_remote_code: true
+    device: 0
+  - model_framework: huggingface
+    model: NousResearch/Hermes-2-Pro-Mistral-7B
+    pipeline_kwargs:
+      max_new_tokens: 200
+    device: 0
+```
+</details>
 
 ### Making the retrieval service provider or LLM provider available to others
 
