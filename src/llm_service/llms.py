@@ -45,7 +45,7 @@ def get_llm(
             "text-generation",
             model=model,
             tokenizer=tokenizer,
-            **config["pipeline_kwargs"],
+            **config.get("pipeline_kwargs", {}),
         )
         llm = HuggingFacePipeline(pipeline=pipe)
     else:
