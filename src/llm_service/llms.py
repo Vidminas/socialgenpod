@@ -35,7 +35,9 @@ def get_llm(
     elif model_framework == "huggingface":
         config = merge(config, {"model_kwargs": {"local_files_only": local_files_only}})
 
-        tokenizer = AutoTokenizer.from_pretrained(config["model"])
+        tokenizer = AutoTokenizer.from_pretrained(
+            config["model"], **config["model_kwargs"]
+        )
         model = AutoModelForCausalLM.from_pretrained(
             config["model"], **config["model_kwargs"]
         )

@@ -9,12 +9,6 @@ llms:
     config:
       context_length: 1024
       max_new_tokens: 256
-  - model_framework: huggingface
-    model: RWKV/HF_v5-Eagle-7B
-  - model_framework: huggingface
-    model: mistralai/Mistral-7B-Instruct-v0.2
-  - model_framework: huggingface
-    model: microsoft/phi-2
   
 download: true
 
