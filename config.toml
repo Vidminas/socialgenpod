@@ -15,7 +15,8 @@ disableKinds = ["taxonomy", "term"]
 
   links = [
     # { email = "mailto:hello@your_domain.com" },
-    # { link = "https://link-to-some-website.com/" },
+    { link = { href = "https://socialgenpod-css.ryey.icu", text = "Demo website" } },
+    { youtube = { href = "https://www.youtube.com/watch?v=SdqkJ_uDR4w", text = "Demo video" } },
     # { amazon = "https://www.amazon.com/hz/wishlist/ls/wishlist-id" },
     # { apple = "https://www.apple.com" },
     # { codepen = "https://codepen.io/username" },
@@ -51,7 +52,6 @@ disableKinds = ["taxonomy", "term"]
     # { twitch = "https://twitch.tv/username" },
     # { twitter = "https://twitter.com/username" },
     # { whatsapp = "https://wa.me/phone-number" },
-    { youtube = "https://www.youtube.com/watch?v=SdqkJ_uDR4w" },
   ]
 
 [module]
